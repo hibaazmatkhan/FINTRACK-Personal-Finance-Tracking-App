@@ -10,7 +10,7 @@
 
 ## 🔹 For End Users — Just Use the App
 
-**Download the latest `FinTrack.exe` from the [Releases](https://github.com/YOUR_USERNAME/fintrack_python/releases) page.**
+**Download the latest `FinTrack.exe` from the [Releases](https://github.com/hibaazmatkhan/FINTRACK-Personal-Finance-Tracking-App/releases) page.**
 
 - ✅ No Python, no command line, no setup
 - ✅ Double-click and it runs
