@@ -145,7 +145,7 @@ client-safe keys. Real security is enforced server-side:
 
 ---
 
-## Project structure
+## 📁 Project structure
 
 ```
 fintrack_python/
@@ -181,7 +181,7 @@ fintrack_python/
 └── RELEASE_NOTES.txt             # Info for end users who find the .exe
 ```
 
-## 🧰 Tech stack
+## 🧰 Tech Stack
 
 | Layer | Technology |
 |---|---|
