@@ -18,6 +18,9 @@ venv/
 
 # OS / editor
 .DS_Store
+
+# Downloaded Flet client binary (auto-downloaded by build_exe.py)
+scripts/flet-windows.zip
 Thumbs.db
 .vscode/
 .idea/

@@ -1,9 +1,18 @@
 """Build standalone FinTrack executable using PyInstaller."""
 import sys
 import subprocess
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+FLET_CLIENT_ZIP = ROOT / "scripts" / "flet-windows.zip"
+FLET_CLIENT_VERSION = "0.85.3"
+
+# Auto-download the Flet desktop client if not present
+if not FLET_CLIENT_ZIP.exists():
+    url = f"https://github.com/flet-dev/flet/releases/download/v{FLET_CLIENT_VERSION}/flet-windows.zip"
+    print(f"Downloading Flet v{FLET_CLIENT_VERSION} client...")
+    urllib.request.urlretrieve(url, str(FLET_CLIENT_ZIP))
 
 # PyInstaller command
 cmd = [
@@ -11,6 +20,7 @@ cmd = [
     "--name", "FinTrack",
     "--onedir",
     "--windowed",
+    "--noconfirm",
     "--icon", str(ROOT / "app_icon.ico"),
     "--distpath", str(ROOT / "dist"),
     "--workpath", str(ROOT / "build"),
@@ -19,6 +29,8 @@ cmd = [
     "--add-data", f"{ROOT / 'theme_settings.json'}{';'}.",
     "--add-data", f"{ROOT / '.env'}{';'}.",
     "--add-data", f"{ROOT / 'app_icon.ico'}{';'}.",
+    # Bundle the Flet desktop client so end users don't need to download it
+    "--add-data", f"{FLET_CLIENT_ZIP}{';'}flet_desktop/app",
     # Hidden imports for Firebase Admin / Supabase / etc.
     "--hidden-import", "firebase_admin",
     "--hidden-import", "supabase",
