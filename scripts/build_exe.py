@@ -49,6 +49,7 @@ cmd = [
     "--hidden-import", "asyncio",
     # Collect all sub-packages
     "--collect-submodules", "flet",
+    "--collect-data", "flet",
     "--collect-submodules", "flet_desktop",
     "--collect-submodules", "flet_charts",
     "--collect-submodules", "services",
