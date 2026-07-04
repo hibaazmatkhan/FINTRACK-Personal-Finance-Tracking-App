@@ -181,7 +181,7 @@ fintrack_python/
 └── RELEASE_NOTES.txt             # Info for end users who find the .exe
 ```
 
-## Tech stack
+## 🧰 Tech stack
 
 | Layer | Technology |
 |---|---|
