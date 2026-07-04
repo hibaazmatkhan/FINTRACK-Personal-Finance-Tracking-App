@@ -15,6 +15,7 @@ neo buttons there get a clean, undistracting shadow.
 """
 import json
 import os
+import sys
 import time
 import requests
 import flet as ft
@@ -583,6 +584,10 @@ def _build_theme(is_dark: bool) -> ft.Theme:
 def configure_page(page: ft.Page):
     """One-time + per-toggle page setup: window size, fonts, theme_mode."""
     page.title = "FinTrack — Personal Finance Tracker"
+    _icon_base = getattr(sys, '_MEIPASS', os.path.dirname(_BASE))
+    _icon = os.path.join(_icon_base, "app_icon.ico")
+    if os.path.exists(_icon):
+        page.window.icon = _icon
     page.window.width = 1100
     page.window.height = 700
     page.window.min_width = 900
