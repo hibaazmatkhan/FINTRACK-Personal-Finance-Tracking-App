@@ -1,0 +1,22 @@
+═══════════════════════════════════════════════════════════════
+  FinTrack — Personal Finance Tracker
+  Standalone Windows Executable
+═══════════════════════════════════════════════════════════════
+
+HOW TO RUN:
+  Double-click FinTrack.exe. No installation needed.
+
+FIRST RUN:
+  1. Sign up with your email and password.
+  2. Verify your email (check spam if not visible).
+  3. Sign in and start tracking!
+
+CURRENCY:
+  Settings → Currency to switch between PKR, USD, EUR, GBP,
+  INR, AED, SAR, CAD. Live rates are fetched automatically.
+
+═══════════════════════════════════════════════════════════════
+  This .exe was built with the app author's own Firebase and
+  Supabase credentials. It works out of the box. For security
+  info, see the README on GitHub.
+═══════════════════════════════════════════════════════════════

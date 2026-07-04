@@ -1,0 +1,9 @@
+firebase-admin==6.6.0
+pyrebase4==4.7.1
+supabase==2.6.0
+python-dotenv==1.0.1
+pillow==11.1.0
+flet==0.85.3
+flet-desktop==0.85.3
+flet-charts==0.85.3
+requests>=2.31.0
