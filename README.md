@@ -192,3 +192,7 @@ fintrack_python/
 | Currency rates | **open.er-api.com** (free, no key needed) |
 | Icons | Emoji via system font |
 | Packaging | **PyInstaller** → **Inno Setup** |
+
+## 📚 Course
+
+**Object-Oriented Programming** — 2nd Semester project.
