@@ -10,7 +10,7 @@ import pyrebase
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
 
 FIREBASE_CONFIG = {
     "apiKey": os.getenv("FIREBASE_API_KEY"),
@@ -142,6 +142,26 @@ class FirebaseAuthService:
             if "INVALID_PASSWORD" in msg or "INVALID_LOGIN_CREDENTIALS" in msg:
                 return False
             raise AuthError(_friendly_error(msg))
+
+    @staticmethod
+    def check_email_exists(email: str) -> bool:
+        """Check if an email is already registered with Firebase by
+        attempting sign-in with a dummy password. Returns True if the
+        email is already taken."""
+        try:
+            url = f"{IDENTITY_BASE}/accounts:signInWithPassword?key={API_KEY}"
+            resp = requests.post(url, json={
+                "email": email,
+                "password": "___check_email_dummy___",
+                "returnSecureToken": False,
+            })
+            data = resp.json()
+            error_msg = data.get("error", {}).get("message", "")
+            if "EMAIL_NOT_FOUND" in error_msg:
+                return False
+            return True
+        except Exception:
+            return False
 
     # ── Email change ────────────────────────────────────────
 

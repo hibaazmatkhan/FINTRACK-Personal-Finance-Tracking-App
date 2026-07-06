@@ -1,7 +1,7 @@
 """Add Transaction dialog — with date-aware balance check + budget limit warning. (Flet edition)"""
 from datetime import date, datetime
 import flet as ft
-from ui_flet.theme import theme, Palette, neo_button, hoverable, dialog_title_with_close, confirm_dialog, format_amount
+from ui_flet.theme import theme, Palette, neo_button, hoverable, dialog_title_with_close, confirm_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import (
@@ -25,8 +25,14 @@ def AddTransactionDialog(page: ft.Page, on_saved):
 
     state = {"txn_type": "expense", "category": None, "date": date.today()}
 
+    cur_symbol = CURRENCY_CONFIG.get(theme.currency, {}).get("symbol", "$")
+    cur_prefix = CURRENCY_CONFIG.get(theme.currency, {}).get("prefix", True)
+    amount_currency_label = ft.Text(f"{cur_symbol} " if cur_prefix else "", size=14,
+                                     color=c["text_dark"], weight=ft.FontWeight.BOLD)
+    amount_hint = "0.00"
+
     amount_field = ft.TextField(
-        hint_text="0.00", width=380, height=46, text_size=14,
+        hint_text=amount_hint, width=380, height=46, text_size=14,
         color=c["text_dark"], hint_style=ft.TextStyle(color=c["text_light"]),
         bgcolor="transparent", border=ft.InputBorder.NONE,
         keyboard_type=ft.KeyboardType.NUMBER,
@@ -198,6 +204,12 @@ def AddTransactionDialog(page: ft.Page, on_saved):
             amount = float(amount_field.value or 0)
             if amount <= 0:
                 raise ValueError
+            max_amt = get_max_amount()
+            if amount > max_amt:
+                error_text.value = f"Maximum allowed is {format_amount(max_amt)} per transaction."
+                error_text.visible = True
+                dialog.update()
+                return
         except ValueError:
             error_text.value = "Please enter a valid positive amount."
             error_text.visible = True
@@ -268,7 +280,10 @@ def AddTransactionDialog(page: ft.Page, on_saved):
                 type_toggle_row,
                 ft.Container(height=16),
                 ft.Text("Amount", size=12, color=c["text_mid"]),
-                neo_inset(amount_field, width=380),
+                neo_inset(
+                    ft.Row([amount_currency_label, amount_field], spacing=4, vertical_alignment=ft.CrossAxisAlignment.CENTER),
+                    width=380, padding=ft.Padding(14, 10, 14, 10),
+                ),
                 ft.Container(height=4),
                 balance_text,
                 warning_text,

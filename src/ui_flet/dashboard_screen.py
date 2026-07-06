@@ -84,7 +84,7 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
             return ctl
         if name == "Settings":
             from ui_flet.settings_page import SettingsPage
-            ctl = SettingsPage(page, on_logout=sign_out, on_theme_changed=rebuild_shell,
+            ctl = SettingsPage(page, on_logout=sign_out, on_theme_changed=apply_theme,
                                 on_profile_changed=lambda: refresh_sidebar_profile(force_avatar_refresh=True))
             page_refresh[name] = ctl.refresh
             return ctl
@@ -97,12 +97,13 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
         content_area.content = page_built[name]
         current["name"] = name
 
+        pal = theme.colors
         for key, nav_box in nav_row_refs.items():
             nav_box.bgcolor = Palette.PRIMARY if key == name else "transparent"
             nav_box.shadow = (
                 [
-                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(c["neo_light_alpha"], c["neo_light"]), offset=ft.Offset(-4, -4)),
-                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(c["neo_dark_alpha"], c["neo_dark"]), offset=ft.Offset(4, 4)),
+                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(pal["neo_light_alpha"], pal["neo_light"]), offset=ft.Offset(-4, -4)),
+                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(pal["neo_dark_alpha"], pal["neo_dark"]), offset=ft.Offset(4, 4)),
                 ]
                 if key == name else None
             )
@@ -124,27 +125,42 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
         FirebaseAuthService.sign_out()
         on_logout()
 
-    def rebuild_shell():
-        """Called by Settings after a dark/light toggle — the whole shell
-        (sidebar colors, mesh background, every built page) needs fresh
-        theme.colors, so simplest approach is a full rebuild.
-
-        page.theme_mode also needs updating here — it's what Flutter's
-        own native controls (DatePicker, etc.) actually read for their
-        default styling, separate from our own custom theme.colors
-        palette. Without this, those controls would stay stuck on
-        whichever mode was active at app launch forever, regardless of
-        how many times the in-app toggle was used.
+    def apply_theme():
+        """Live theme update — updates page theme_mode, mesh background,
+        and rebuilds the current page content in-place. Avoids the old
+        page.clean() + full shell rebuild that caused a visible refresh
+        flash every time the dark/light toggle was used.
         """
         page.theme_mode = ft.ThemeMode.DARK if theme.is_dark else ft.ThemeMode.LIGHT
+        page.bgcolor = theme.colors["surface"]
+        # Rebuild mesh background inside body_stack
+        body_stack.controls[0] = mesh_background()
+        # Rebuild current page with fresh theme colors
         page_built.clear()
         page_refresh.clear()
-        new_shell = DashboardScreen(page, on_logout)
-        page.clean()
-        page.bgcolor = theme.colors["surface"]
-        wrapped = screen_transition(new_shell)
-        page.add(wrapped)
-        mount(wrapped, page)
+        if current["name"]:
+            page_built[current["name"]] = build_page(current["name"])
+            content_area.content = page_built[current["name"]]
+        # Update sidebar nav item active styling using fresh theme colors
+        pal = theme.colors
+        for key, nav_box in nav_row_refs.items():
+            is_active = key == current["name"]
+            nav_box.bgcolor = Palette.PRIMARY if is_active else "transparent"
+            nav_box.shadow = (
+                [
+                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(pal["neo_light_alpha"], pal["neo_light"]), offset=ft.Offset(-4, -4)),
+                    ft.BoxShadow(blur_radius=10, color=ft.Colors.with_opacity(pal["neo_dark_alpha"], pal["neo_dark"]), offset=ft.Offset(4, 4)),
+                ]
+                if is_active else None
+            )
+            nav_accent_refs[key].bgcolor = Palette.WHITE if is_active else "transparent"
+        try:
+            page.update()
+        except RuntimeError:
+            pass
+        if current["name"] and current["name"] in page_refresh:
+            page_refresh[current["name"]]()
+        refresh_sidebar_profile()
 
     # ── Sidebar ──────────────────────────────────────────────
     nav_accent_refs = {}  # name -> the small left accent-bar Container

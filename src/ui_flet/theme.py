@@ -23,6 +23,24 @@ import flet as ft
 _BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SETTINGS_FILE = os.path.join(os.environ.get("APPDATA", _BASE), "FinTrack", "theme_settings.json")
 
+# ── Constants ───────────────────────────────────────────────
+
+AMOUNT_LIMITS = {
+    "PKR": 28000000.0,
+    "USD": 100000.0,
+    "EUR": 87000.0,
+    "GBP": 79000.0,
+    "INR": 8350000.0,
+    "AED": 367000.0,
+    "SAR": 375000.0,
+    "CAD": 136000.0,
+}
+
+def get_max_amount(currency_code: str = None) -> float:
+    if currency_code is None:
+        currency_code = theme.currency
+    return AMOUNT_LIMITS.get(currency_code, 100000.0)
+
 # ── Currency configuration ──────────────────────────────────
 
 CURRENCY_CONFIG = {

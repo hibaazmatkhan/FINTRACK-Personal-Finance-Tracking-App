@@ -188,6 +188,11 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
                 error_text.visible = True
                 dialog.update()
                 return
+            if new_email != current_email and FirebaseAuthService.check_email_exists(new_email):
+                error_text.value = "An account with this email already exists."
+                error_text.visible = True
+                dialog.update()
+                return
             try:
                 FirebaseAuthService.update_email(new_email)
                 page.pop_dialog()
@@ -521,11 +526,44 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
     def confirm_sign_out(e=None):
         confirm("Sign Out", "Are you sure you want to sign out?", sign_out)
 
+    _avatar_url_store = {"url": None}
+
+    def open_avatar_view(e=None):
+        url = _avatar_url_store["url"]
+        if not url:
+            return
+        import time
+        page.show_dialog(ft.AlertDialog(
+            modal=True,
+            bgcolor=c["surface"],
+            shape=ft.RoundedRectangleBorder(radius=24),
+            title=ft.Row(
+                [
+                    ft.Text("Profile Photo", size=16, weight=ft.FontWeight.BOLD, color=c["text_dark"]),
+                    ft.IconButton(
+                        icon=ft.Icons.CLOSE, icon_size=20, icon_color=c["text_mid"],
+                        on_click=lambda e: page.pop_dialog(),
+                    ),
+                ],
+                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+            ),
+            content=ft.Container(
+                width=320, height=320,
+                content=ft.Image(
+                    src=f"{url}?t={int(time.time())}",
+                    width=320, height=320, fit=ft.BoxFit.CONTAIN,
+                    border_radius=16,
+                    error_content=ft.Text("👤", size=64),
+                ),
+            ),
+        ))
+
     avatar_circle = ft.Container(
         width=56, height=56, border_radius=16, bgcolor="#E08870",
         alignment=ft.alignment.Alignment.CENTER, content=avatar_text,
         clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
     )
+    hoverable(avatar_circle, hover_scale=1.03, on_click=open_avatar_view)
 
     change_photo_btn = ft.Container(
         content=ft.Text("Change Photo", size=11, weight=ft.FontWeight.BOLD, color=Palette.WHITE),
@@ -546,10 +584,8 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
     )
 
     def show_avatar(avatar_url: str | None):
+        _avatar_url_store["url"] = avatar_url
         if avatar_url:
-            # Cache-bust so a freshly-uploaded photo (same path, new
-            # content) actually replaces the old one instead of the
-            # client reusing a stale cached image for that URL.
             import time
             avatar_circle.content = ft.Image(
                 src=f"{avatar_url}?t={int(time.time())}",
@@ -559,6 +595,7 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
             )
         else:
             avatar_circle.content = avatar_text
+            _avatar_url_store["url"] = None
 
     # ── Help dialog ──────────────────────────────────────────────
     def open_help_dialog():

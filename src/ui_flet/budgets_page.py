@@ -1,7 +1,7 @@
 """Budgets page — set & track monthly category spending limits. (Flet edition)"""
 from datetime import date
 import flet as ft
-from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, dialog_title_with_close, confirm_dialog, format_amount
+from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, dialog_title_with_close, confirm_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import Transaction, Budget, icon_for, DEFAULT_EXPENSE_CATEGORIES, custom_categories_for_type
@@ -68,6 +68,11 @@ def BudgetsPage(page: ft.Page, on_changed=None) -> ft.Control:
             menu_style=ft.MenuStyle(bgcolor=c["surface"]),
         )
 
+        cur_symbol = CURRENCY_CONFIG.get(theme.currency, {}).get("symbol", "$")
+        cur_prefix = CURRENCY_CONFIG.get(theme.currency, {}).get("prefix", True)
+        budget_currency_label = ft.Text(f"{cur_symbol} " if cur_prefix else "", size=14,
+                                         color=c["text_dark"], weight=ft.FontWeight.BOLD)
+
         amount_field = ft.TextField(
             hint_text="0.00", value=str(int(existing.monthly_limit)) if existing else "",
             width=340, height=46, text_size=14, color=c["text_dark"],
@@ -77,7 +82,10 @@ def BudgetsPage(page: ft.Page, on_changed=None) -> ft.Control:
             content_padding=ft.Padding(14, 10, 14, 10),
         )
         amount_box = ft.Container(
-            content=amount_field, border_radius=12, bgcolor=c["neo_base"],
+            content=ft.Row([budget_currency_label, amount_field], spacing=4,
+                           vertical_alignment=ft.CrossAxisAlignment.CENTER),
+            border_radius=12, bgcolor=c["neo_base"],
+            padding=ft.Padding(14, 10, 14, 10),
             shadow=[
                 ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_dark_alpha"], c["neo_dark"]), offset=ft.Offset(3, 3)),
                 ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_light_alpha"], c["neo_light"]), offset=ft.Offset(-3, -3)),
@@ -96,6 +104,12 @@ def BudgetsPage(page: ft.Page, on_changed=None) -> ft.Control:
                 amount = float(amount_field.value or 0)
                 if amount <= 0:
                     raise ValueError
+                max_amt = get_max_amount()
+                if amount > max_amt:
+                    error_text.value = f"Maximum allowed is {format_amount(max_amt)} per budget."
+                    error_text.visible = True
+                    dialog.update()
+                    return
             except ValueError:
                 error_text.value = "Please enter a valid amount."
                 error_text.visible = True
