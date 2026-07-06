@@ -122,8 +122,6 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
         refresh_sidebar_profile()
 
     def sign_out():
-        from services.supabase_service import set_auth_token
-        set_auth_token(None)
         FirebaseAuthService.sign_out()
         on_logout()
 
