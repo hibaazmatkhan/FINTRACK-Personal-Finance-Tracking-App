@@ -1,7 +1,7 @@
 """Categories page — manage custom income/expense categories with emoji. (Flet edition)"""
 import re
 import flet as ft
-from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, hoverable, dialog_title_with_close, confirm_dialog
+from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, hoverable, dialog_title_with_close, confirm_dialog, show_error_dialog
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import (
@@ -48,16 +48,7 @@ def CategoriesPage(page: ft.Page) -> ft.Control:
                 SupabaseService.delete_custom_category(cat.id)
                 refresh()
             except SupabaseError as ex:
-                page.show_dialog(ft.AlertDialog(
-                    modal=True, bgcolor=c["surface"],
-                    shape=ft.RoundedRectangleBorder(radius=20),
-                    title=ft.Text("Error", color=Palette.EXPENSE, weight=ft.FontWeight.BOLD),
-                    content=ft.Text(str(ex), color=c["text_mid"]),
-                    actions=[ft.TextButton(
-                        content=ft.Text("OK", color=Palette.PRIMARY, weight=ft.FontWeight.BOLD),
-                        on_click=lambda e: page.pop_dialog(),
-                    )],
-                ))
+                show_error_dialog(page, str(ex))
 
         confirm_dialog(
             page, "Delete Category", f'Delete "{cat.name}"?',

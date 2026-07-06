@@ -1,7 +1,7 @@
 """Budgets page — set & track monthly category spending limits. (Flet edition)"""
 from datetime import date
 import flet as ft
-from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, dialog_title_with_close, confirm_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
+from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, dialog_title_with_close, confirm_dialog, show_error_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import Transaction, Budget, icon_for, DEFAULT_EXPENSE_CATEGORIES, custom_categories_for_type
@@ -29,16 +29,7 @@ def BudgetsPage(page: ft.Page, on_changed=None) -> ft.Control:
                 if on_changed:
                     on_changed()
             except SupabaseError as ex:
-                page.show_dialog(ft.AlertDialog(
-                    modal=True, bgcolor=c["surface"],
-                    shape=ft.RoundedRectangleBorder(radius=20),
-                    title=ft.Text("Error", color=Palette.EXPENSE, weight=ft.FontWeight.BOLD),
-                    content=ft.Text(str(ex), color=c["text_mid"]),
-                    actions=[ft.TextButton(
-                        content=ft.Text("OK", color=Palette.PRIMARY, weight=ft.FontWeight.BOLD),
-                        on_click=lambda e: page.pop_dialog(),
-                    )],
-                ))
+                show_error_dialog(page, str(ex))
 
         confirm_dialog(
             page, "Remove Budget", f'Remove budget for "{b.category}"?',

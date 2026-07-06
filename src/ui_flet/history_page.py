@@ -1,17 +1,21 @@
 """History page — searchable, filterable transaction list with delete. (Flet edition)"""
 import flet as ft
-from ui_flet.theme import theme, Palette, mesh_background, glass_card, hoverable, confirm_dialog, format_amount
+from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, hoverable, confirm_dialog, show_error_dialog, format_amount
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import Transaction, icon_for
 from datetime import datetime
 
 
+_PAGE_SIZE = 50
+
+
 def HistoryPage(page: ft.Page) -> ft.Control:
     c = theme.colors
-    state = {"transactions": [], "filter": "All"}
+    state = {"transactions": [], "filter": "All", "offset": 0, "has_more": True}
 
     list_column = ft.Column(spacing=8)
+    loading_spinner = ft.ProgressRing(width=24, height=24, color=Palette.PRIMARY, visible=False)
 
     search_field = ft.TextField(
         hint_text="🔍 Search category, amount, date (e.g. Jan, Monday, 1500)...", width=360, height=42,
@@ -63,16 +67,7 @@ def HistoryPage(page: ft.Page) -> ft.Control:
                 SupabaseService.delete_transaction(t.id)
                 refresh()
             except SupabaseError as ex:
-                page.show_dialog(ft.AlertDialog(
-                    modal=True, bgcolor=c["surface"],
-                    shape=ft.RoundedRectangleBorder(radius=20),
-                    title=ft.Text("Error", color=Palette.EXPENSE, weight=ft.FontWeight.BOLD),
-                    content=ft.Text(str(ex), color=c["text_mid"]),
-                    actions=[ft.TextButton(
-                        content=ft.Text("OK", color=Palette.PRIMARY, weight=ft.FontWeight.BOLD),
-                        on_click=lambda e: page.pop_dialog(),
-                    )],
-                ))
+                show_error_dialog(page, str(ex))
 
         confirm_dialog(
             page, "Delete transaction", "Are you sure you want to delete this?",
@@ -193,19 +188,70 @@ def HistoryPage(page: ft.Page) -> ft.Control:
             for t in data:
                 list_column.controls.append(build_tile(t))
 
+    def load_more(e=None):
+        uid = FirebaseAuthService.get_uid()
+        if not uid:
+            return
+        if not state["has_more"]:
+            return
+        loading_spinner.visible = True
+        load_more_btn.visible = False
+        page.update()
+        try:
+            rows = SupabaseService.fetch_transactions(uid, limit=_PAGE_SIZE, offset=state["offset"])
+            new_txns = [Transaction.from_row(r) for r in rows]
+            state["transactions"].extend(new_txns)
+            state["offset"] += len(new_txns)
+            state["has_more"] = len(new_txns) == _PAGE_SIZE
+        except SupabaseError:
+            state["has_more"] = False
+        loading_spinner.visible = False
+        if state["has_more"]:
+            load_more_btn.visible = True
+        render_list()
+        page.update()
+
     def refresh():
         uid = FirebaseAuthService.get_uid()
         if not uid:
             return
+        state["offset"] = 0
+        state["has_more"] = True
+        state["transactions"] = []
+        load_more_btn.visible = False
+        loading_spinner.visible = True
+        page.update()
         try:
-            rows = SupabaseService.fetch_transactions(uid)
+            rows = SupabaseService.fetch_transactions(uid, limit=_PAGE_SIZE, offset=0)
             state["transactions"] = [Transaction.from_row(r) for r in rows]
+            state["offset"] = len(rows)
+            state["has_more"] = len(rows) == _PAGE_SIZE
         except SupabaseError:
             state["transactions"] = []
+            state["has_more"] = False
+        loading_spinner.visible = False
+        if state["has_more"]:
+            load_more_btn.visible = True
         render_list()
         page.update()
 
-    search_field.on_change = lambda e: (render_list(), page.update())
+    _search_timer = None
+
+    def on_search_change(e):
+        nonlocal _search_timer
+        if _search_timer is not None:
+            _search_timer.cancel()
+        import asyncio
+        async def debounce():
+            await asyncio.sleep(0.3)
+            render_list()
+            page.update()
+        _search_timer = asyncio.ensure_future(debounce())
+
+    search_field.on_change = on_search_change
+
+    load_more_btn = neo_button("Load More", on_click=load_more, width=150, height=42, filled=False)
+    load_more_btn.visible = False
 
     content = ft.Column(
         [
@@ -220,6 +266,12 @@ def HistoryPage(page: ft.Page) -> ft.Control:
             filter_row,
             ft.Container(height=16),
             list_column,
+            ft.Container(height=12),
+            ft.Row(
+                [loading_spinner, load_more_btn],
+                alignment=ft.MainAxisAlignment.CENTER,
+                spacing=12,
+            ),
         ],
         scroll=ft.ScrollMode.AUTO,
         spacing=0, expand=True,

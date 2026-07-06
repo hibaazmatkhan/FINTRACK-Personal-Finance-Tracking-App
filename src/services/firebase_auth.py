@@ -4,13 +4,18 @@ Handles: email/password signup & login, password reset emails,
 email change, phone number linking, and session/token management.
 """
 import os
+import sys
 import json
 import requests
 import pyrebase
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+if getattr(sys, 'frozen', False):
+    _dotenv_path = Path(sys._MEIPASS) / ".env"
+else:
+    _dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(_dotenv_path)
 
 FIREBASE_CONFIG = {
     "apiKey": os.getenv("FIREBASE_API_KEY"),
@@ -281,6 +286,12 @@ class FirebaseAuthService:
     @staticmethod
     def is_logged_in() -> bool:
         return FirebaseAuthService.current_user is not None
+
+    @staticmethod
+    def get_id_token() -> str | None:
+        FirebaseAuthService._ensure_fresh_token()
+        user = FirebaseAuthService.current_user
+        return user.get("idToken") if user else None
 
     @staticmethod
     def get_uid() -> str | None:

@@ -1,7 +1,7 @@
 """Home / Overview page. (Flet edition)"""
 from datetime import datetime
 import flet as ft
-from ui_flet.theme import theme, Palette, mesh_background, glass_card, glass_hero, neo_fab, hoverable, confirm_dialog, format_amount
+from ui_flet.theme import theme, Palette, mesh_background, glass_card, glass_hero, neo_fab, hoverable, confirm_dialog, show_error_dialog, format_amount
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import Transaction, icon_for
@@ -27,16 +27,7 @@ def HomePage(page: ft.Page, on_add) -> ft.Control:
                 SupabaseService.delete_transaction(t.id)
                 refresh()
             except SupabaseError as ex:
-                page.show_dialog(ft.AlertDialog(
-                    modal=True, bgcolor=c["surface"],
-                    shape=ft.RoundedRectangleBorder(radius=20),
-                    title=ft.Text("Error", color=Palette.EXPENSE, weight=ft.FontWeight.BOLD),
-                    content=ft.Text(str(ex), color=c["text_mid"]),
-                    actions=[ft.TextButton(
-                        content=ft.Text("OK", color=Palette.PRIMARY, weight=ft.FontWeight.BOLD),
-                        on_click=lambda e: page.pop_dialog(),
-                    )],
-                ))
+                show_error_dialog(page, str(ex))
 
         confirm_dialog(
             page, "Delete transaction", "Are you sure you want to delete this?",
@@ -91,13 +82,13 @@ def HomePage(page: ft.Page, on_add) -> ft.Control:
         username_text.value = profile.get("username") or "User"
 
         try:
-            rows = SupabaseService.fetch_transactions(uid)
-            transactions = [Transaction.from_row(r) for r in rows]
+            totals = SupabaseService.fetch_totals(uid)
+            income = totals["income"]
+            expense = totals["expense"]
         except SupabaseError:
-            transactions = []
+            income = 0.0
+            expense = 0.0
 
-        income = sum(t.amount for t in transactions if t.is_income)
-        expense = sum(t.amount for t in transactions if not t.is_income)
         balance = income - expense
         savings_rate = ((income - expense) / income * 100) if income > 0 else 0
         savings_rate = max(0, min(100, savings_rate))
@@ -107,7 +98,12 @@ def HomePage(page: ft.Page, on_add) -> ft.Control:
         income_value.value = format_amount(income)
         expense_value.value = format_amount(expense)
 
-        recent = transactions[:5]
+        try:
+            rows = SupabaseService.fetch_transactions(uid, limit=5)
+            recent = [Transaction.from_row(r) for r in rows]
+        except SupabaseError:
+            recent = []
+
         recent_list.controls.clear()
         if not recent:
             recent_list.controls.append(

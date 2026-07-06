@@ -1,7 +1,7 @@
 """Add Transaction dialog — with date-aware balance check + budget limit warning. (Flet edition)"""
 from datetime import date, datetime
 import flet as ft
-from ui_flet.theme import theme, Palette, neo_button, hoverable, dialog_title_with_close, confirm_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
+from ui_flet.theme import theme, Palette, neo_button, neo_inset, hoverable, dialog_title_with_close, confirm_dialog, show_error_dialog, format_amount, get_max_amount, CURRENCY_CONFIG
 from services.firebase_auth import FirebaseAuthService
 from services.supabase_service import SupabaseService, SupabaseError
 from models.data_models import (
@@ -51,16 +51,6 @@ def AddTransactionDialog(page: ft.Page, on_saved):
     date_label = ft.Text(date.today().strftime("%b %d, %Y"), size=13, color=c["text_dark"], weight=ft.FontWeight.BOLD)
 
     category_chips_row = ft.Row(wrap=True, spacing=8, run_spacing=8)
-
-    def neo_inset(content, *, width=None, height=46, radius=12, padding=0):
-        return ft.Container(
-            content=content, width=width, height=height, padding=padding,
-            border_radius=radius, bgcolor=c["neo_base"],
-            shadow=[
-                ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_dark_alpha"], c["neo_dark"]), offset=ft.Offset(3, 3)),
-                ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_light_alpha"], c["neo_light"]), offset=ft.Offset(-3, -3)),
-            ],
-        )
 
     def balance_on_date(target: date) -> float:
         inc = sum(t.amount for t in all_transactions if t.is_income and t.date <= target)
@@ -307,6 +297,10 @@ def AddTransactionDialog(page: ft.Page, on_saved):
         padding=8,
     )
 
+    def cleanup(e=None):
+        if date_picker in page.overlay:
+            page.overlay.remove(date_picker)
+
     dialog = ft.AlertDialog(
         modal=True,
         bgcolor=c["surface"],
@@ -314,6 +308,7 @@ def AddTransactionDialog(page: ft.Page, on_saved):
         title=dialog_title_with_close("Add Transaction", page),
         content=dialog_content,
         scrollable=True,
+        on_dismiss=cleanup,
     )
 
     amount_field.on_change = lambda e: check_warnings()

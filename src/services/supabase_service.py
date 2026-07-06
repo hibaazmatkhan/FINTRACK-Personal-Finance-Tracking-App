@@ -5,17 +5,33 @@ and user profile (username, avatar). Auth identity comes from Firebase;
 the Firebase UID is used as the user_id key across all Supabase tables.
 """
 import os
+import sys
 from datetime import datetime, date
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
-load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")
+if getattr(sys, 'frozen', False):
+    _dotenv_path = Path(sys._MEIPASS) / ".env"
+else:
+    _dotenv_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(_dotenv_path)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
 _client: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+
+def set_auth_token(token: str | None):
+    """Set the Firebase ID token on the Supabase client for RLS.
+    Call after login and whenever the token refreshes.
+    Pass None to reset to anon."""
+    global _client
+    if token:
+        _client.postgrest.auth(token=token)
+    else:
+        _client.postgrest.auth(token=SUPABASE_ANON_KEY)
 
 
 class SupabaseError(Exception):
@@ -98,6 +114,18 @@ class SupabaseService:
             pass
 
     # ── Transactions ──────────────────────────────────────
+
+    @staticmethod
+    def fetch_totals(uid: str) -> dict:
+        """Fetch income total and expense total for a user.
+        Returns {'income': float, 'expense': float}."""
+        try:
+            rows = _client.table("transactions").select("type,amount").eq("user_id", uid).execute()
+            income = sum(r["amount"] for r in (rows.data or []) if r["type"] == "income")
+            expense = sum(r["amount"] for r in (rows.data or []) if r["type"] == "expense")
+            return {"income": income, "expense": expense}
+        except Exception as e:
+            raise SupabaseError(f"Could not fetch totals: {e}")
 
     @staticmethod
     def fetch_transactions(uid: str, limit: int = None, offset: int = 0) -> list[dict]:

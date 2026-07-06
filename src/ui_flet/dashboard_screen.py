@@ -2,7 +2,7 @@
 import flet as ft
 from ui_flet.theme import (
     theme, Palette, hoverable, mesh_background,
-    screen_transition, mount,
+    screen_transition, mount, confirm_dialog,
 )
 from services.firebase_auth import FirebaseAuthService
 
@@ -122,6 +122,8 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
         refresh_sidebar_profile()
 
     def sign_out():
+        from services.supabase_service import set_auth_token
+        set_auth_token(None)
         FirebaseAuthService.sign_out()
         on_logout()
 
@@ -198,7 +200,10 @@ def DashboardScreen(page: ft.Page, on_logout) -> ft.Control:
         bgcolor=ft.Colors.with_opacity(0.85, "#7A2E1A"),  # deliberately darker/red, distinct from the rest of the sidebar
         border=ft.Border.all(1, ft.Colors.with_opacity(0.25, Palette.WHITE)),
     )
-    hoverable(sign_out_item, hover_scale=1.02, on_click=lambda e: sign_out())
+    hoverable(sign_out_item, hover_scale=1.02, on_click=lambda e: confirm_dialog(
+        page, "Sign Out", "Are you sure you want to sign out?",
+        confirm_label="Sign Out", on_confirm=sign_out,
+    ))
 
     logo = ft.Container(
         content=ft.Text("💰 FinTrack", size=18, weight=ft.FontWeight.BOLD, color=Palette.WHITE),

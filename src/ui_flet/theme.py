@@ -381,6 +381,54 @@ def confirm_dialog(page: ft.Page, title: str, message: str, *,
     return dialog
 
 
+def show_error_dialog(page: ft.Page, message: str):
+    c = theme.colors
+    page.show_dialog(ft.AlertDialog(
+        modal=True, bgcolor=c["surface"],
+        shape=ft.RoundedRectangleBorder(radius=20),
+        title=ft.Text("Error", color=Palette.EXPENSE, weight=ft.FontWeight.BOLD),
+        content=ft.Text(message, color=c["text_mid"]),
+        actions=[ft.TextButton(
+            content=ft.Text("OK", color=Palette.PRIMARY, weight=ft.FontWeight.BOLD),
+            on_click=lambda e: page.pop_dialog(),
+        )],
+    ))
+
+
+def neo_inset(content, *, c=None, width=None, height=46, radius=12, padding=0):
+    if c is None:
+        c = theme.colors
+    return ft.Container(
+        content=content, width=width, height=height, padding=padding,
+        border_radius=radius, bgcolor=c["neo_base"],
+        shadow=[
+            ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_dark_alpha"], c["neo_dark"]),
+                         offset=ft.Offset(3, 3)),
+            ft.BoxShadow(blur_radius=8, color=ft.Colors.with_opacity(c["neo_light_alpha"], c["neo_light"]),
+                         offset=ft.Offset(-3, -3)),
+        ],
+    )
+
+
+def loading_overlay(page: ft.Page, visible: bool = True):
+    c = theme.colors
+    if visible:
+        page.show_dialog(ft.AlertDialog(
+            modal=True, bgcolor=ft.Colors.with_opacity(0.3, c["surface"]),
+            shape=ft.RoundedRectangleBorder(radius=20),
+            content=ft.Container(
+                width=60, height=60,
+                content=ft.ProgressRing(width=40, height=40, color=Palette.PRIMARY),
+                alignment=ft.alignment.Alignment.CENTER,
+            ),
+        ))
+    else:
+        try:
+            page.pop_dialog()
+        except Exception:
+            pass
+
+
 def mount(wrapper: ft.Container, page: ft.Page):
     """Call right after adding a screen_transition()-wrapped control to
     the page — flips it to its resting state so the transition plays."""

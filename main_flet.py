@@ -41,6 +41,11 @@ def main(page: ft.Page):
         )
 
     def show_dashboard():
+        from services.firebase_auth import FirebaseAuthService
+        from services.supabase_service import set_auth_token
+        token = FirebaseAuthService.get_id_token()
+        if token:
+            set_auth_token(token)
         show(DashboardScreen(page, on_logout=show_login))
 
     show_login()
