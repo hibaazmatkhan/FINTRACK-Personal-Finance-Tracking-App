@@ -904,3 +904,96 @@ def neo_input_slot(hint, **kwargs) -> tuple[ft.Container, ft.TextField]:
         ],
     )
     return box, field
+
+
+# ── Loading screen ────────────────────────────────────────────
+
+def loading_screen() -> ft.Stack:
+    """Branded splash shown while the app initialises — logo, title,
+    and a small spinner.  Caller should wrap with screen_transition()
+    for a fade+slide-up entry."""
+    c = theme.colors
+    return ft.Stack(
+        controls=[
+            mesh_background(),
+            ft.Container(
+                content=ft.Column(
+                    [
+                        ft.Container(
+                            width=80, height=80, border_radius=20,
+                            bgcolor=Palette.PRIMARY,
+                            alignment=ft.alignment.Alignment.CENTER,
+                            content=ft.Text("💰", size=36),
+                        ),
+                        ft.Container(height=20),
+                        ft.Text("FinTrack", size=28, weight=ft.FontWeight.BOLD, color=c["text_dark"]),
+                        ft.Text("Loading your finances...", size=14, color=c["text_mid"]),
+                        ft.Container(height=20),
+                        ft.ProgressRing(width=30, height=30, color=Palette.PRIMARY),
+                    ],
+                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                    spacing=0,
+                ),
+                alignment=ft.alignment.Alignment.CENTER,
+                expand=True,
+            ),
+        ],
+        expand=True,
+    )
+
+
+def loading_screen_spinner() -> ft.ProgressRing:
+    """Small spinner used inside inline loading states on pages
+    (e.g. while fetching initial data).  Consistent size/color across
+    the app."""
+    return ft.ProgressRing(width=24, height=24, color=Palette.PRIMARY)
+
+
+# ── Offline banner ─────────────────────────────────────────────
+
+_offline_banner_ref: ft.Container | None = None
+
+
+def init_offline_banner(page: ft.Page) -> ft.Container:
+    """Create the global offline-detection banner and add it to the
+    page overlay.  Returns the Container so callers can toggle it."""
+    global _offline_banner_ref
+    c = theme.colors
+    banner = ft.Container(
+        content=ft.Row(
+            [
+                ft.Text("⚠️", size=14),
+                ft.Text("No internet connection", size=13, weight=ft.FontWeight.BOLD, color=Palette.WHITE),
+                ft.Container(expand=True),
+                ft.Text("Some features may be unavailable", size=11, color=ft.Colors.with_opacity(0.75, Palette.WHITE)),
+            ],
+            spacing=8,
+            alignment=ft.MainAxisAlignment.START,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+        padding=ft.Padding(16, 10, 16, 10),
+        bgcolor=Palette.ACCENT,
+        border_radius=ft.BorderRadius(0, 0, 12, 12),
+        shadow=ft.BoxShadow(blur_radius=12, color=ft.Colors.with_opacity(0.2, Palette.BLACK), offset=ft.Offset(0, 2)),
+        visible=False,
+        left=0,
+        top=0,
+        right=0,
+        animate=ft.Animation(200, ft.AnimationCurve.EASE_OUT_CUBIC),
+    )
+    _offline_banner_ref = banner
+    page.overlay.append(banner)
+    return banner
+
+
+def set_offline_banner(online: bool):
+    """Show or hide the offline banner.  Safe to call even if the
+    banner has never been initialised (no-op in that case)."""
+    global _offline_banner_ref
+    if _offline_banner_ref is None:
+        return
+    _offline_banner_ref.visible = not online
+    try:
+        _offline_banner_ref.update()
+    except RuntimeError:
+        pass

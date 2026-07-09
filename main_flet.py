@@ -2,16 +2,18 @@
 FinTrack — Personal Finance Tracker (Flet edition)
 Run with:  python main_flet.py
 """
+import asyncio
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import flet as ft
-from ui_flet.theme import theme, configure_page, screen_transition, mount
+from ui_flet.theme import theme, configure_page, screen_transition, mount, loading_screen, init_offline_banner, set_offline_banner
 from ui_flet.login_screen import LoginScreen
 from ui_flet.register_screen import RegisterScreen
 from ui_flet.dashboard_screen import DashboardScreen
+from services.connectivity import ConnectivityMonitor
 
 
 def main(page: ft.Page):
@@ -23,6 +25,15 @@ def main(page: ft.Page):
         page.clean()
         page.bgcolor = theme.colors["surface"]
         wrapped = screen_transition(control)
+        page.add(wrapped)
+        mount(wrapped, page)
+        return wrapped
+
+    def show_loading():
+        """Branded splash while the app initialises."""
+        page.clean()
+        page.bgcolor = theme.colors["surface"]
+        wrapped = screen_transition(loading_screen())
         page.add(wrapped)
         mount(wrapped, page)
         return wrapped
@@ -43,7 +54,18 @@ def main(page: ft.Page):
     def show_dashboard():
         show(DashboardScreen(page, on_logout=show_login))
 
-    show_login()
+    # ── Initialisation sequence ─────────────────────────────────
+    show_loading()
+
+    connectivity = ConnectivityMonitor()
+    connectivity.start(page)
+    init_offline_banner(page)
+    connectivity.add_listener(set_offline_banner)
+
+    async def _finish_init():
+        await asyncio.sleep(0.8)
+        show_login()
+    page.run_task(_finish_init)
 
 
 if __name__ == "__main__":

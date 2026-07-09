@@ -1,5 +1,6 @@
 """Settings page — profile, dark mode toggle, password/email/phone via Firebase. (Flet edition)"""
 import io
+import re
 import asyncio
 import flet as ft
 from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, hoverable, dialog_title_with_close, format_amount, CURRENCY_LIST, CURRENCY_CONFIG, get_conversion_rate
@@ -177,6 +178,25 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
                 return
 
             current_email = FirebaseAuthService.get_email()
+
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", new_email):
+                error_text.value = "Please enter a valid email address."
+                error_text.visible = True
+                dialog.update()
+                return
+
+            if new_email == current_email:
+                error_text.value = "You are already signed in with this email."
+                error_text.visible = True
+                dialog.update()
+                return
+
+            if FirebaseAuthService.check_email_exists(new_email):
+                error_text.value = "This email is already registered."
+                error_text.visible = True
+                dialog.update()
+                return
+
             try:
                 if not FirebaseAuthService.reauthenticate(current_email, password):
                     error_text.value = "Incorrect password."
@@ -188,18 +208,10 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
                 error_text.visible = True
                 dialog.update()
                 return
-            if new_email != current_email and FirebaseAuthService.check_email_exists(new_email):
-                error_text.value = "An account with this email already exists."
-                error_text.visible = True
-                dialog.update()
-                return
             try:
                 FirebaseAuthService.update_email(new_email)
                 page.pop_dialog()
-                notify(
-                    f"Verification link sent to {new_email} (check spam if not visible). "
-                    "Your email won't change until you click that link."
-                )
+                notify(f"Verification email is being sent to {new_email}")
             except AuthError as ex:
                 error_text.value = str(ex)
                 error_text.visible = True
@@ -240,8 +252,12 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
                 error_text.value = "Please fill in all fields."
             elif new != confirm_val:
                 error_text.value = "Passwords do not match."
-            elif len(new) < 6:
-                error_text.value = "Password must be at least 6 characters."
+            elif len(new) < 8:
+                error_text.value = "Password must be at least 8 characters."
+            elif not re.search(r"\d", new):
+                error_text.value = "Password must contain at least one number."
+            elif not re.search(r"[a-zA-Z]", new):
+                error_text.value = "Password must contain at least one letter."
             else:
                 email = FirebaseAuthService.get_email()
                 try:
@@ -607,45 +623,64 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
                 content=ft.Column([
                     _help_section("📥 Adding Transactions",
                         "Tap the + button on the Home page to open the Add Transaction dialog. "
-                        "Choose Income or Expense type, then pick a category from the list "
-                        "(or add a custom one in Categories). Enter the amount, add an "
-                        "optional description for reference, and select the transaction date. "
-                        "Tap Save — the transaction instantly appears in your History and updates "
-                        "your Home page balance, budget tracking, and reports."),
+                        "Choose Income or Expense type using the toggle, then pick a category "
+                        "from the available chips (including your custom categories). "
+                        "Enter the amount — the dialog shows your balance on the selected date "
+                        "and warns if the expense exceeds it or goes over a budget limit. "
+                        "Add an optional description, select the date (past dates only), "
+                        "and tap Save. The transaction instantly updates your Home balance, "
+                        "History, budgets, and reports."),
                     _help_section("📋 Viewing & Managing History",
-                        "Open the History page to see all your transactions sorted by date. "
-                        "Use the filter chips at the top to view All, Income only, or Expense only "
-                        "transactions. The search bar lets you find transactions by amount, "
-                        "category, or description. Tap the delete icon on any transaction to "
-                        "remove it — this will also update your balances and reports."),
+                        "Open the History page to see all your transactions sorted by date "
+                        "(newest first). Use the filter chips to view All, Income only, or "
+                        "Expense only. The search bar lets you find transactions by category, "
+                        "description, exact amount (e.g. 1500), date (e.g. \"Jan 15 2024\", "
+                        "\"Monday\", \"January\", \"2024\"), or partial text matches. "
+                        "Scroll down and tap \"Load More\" to paginate through older entries. "
+                        "Tap the delete icon on any transaction to remove it."),
                     _help_section("💰 Setting & Tracking Budgets",
-                        "Go to the Budgets page. Tap \"Set a Budget\" for any category and enter "
-                        "a monthly spending limit. Once set, the budget card shows your progress: "
-                        "how much you've spent so far this month vs your limit. "
-                        "When you add an expense transaction, the budget automatically updates. "
-                        "You can edit or remove budgets anytime."),
+                        "Go to the Budgets page and tap \"+ New Budget\". Select an expense "
+                        "category and enter a monthly spending limit. Each budget card shows "
+                        "a progress bar, the amount spent so far this month, and the limit. "
+                        "A green bar means you're under 80%, orange warns you're near the "
+                        "limit (80%+), and red means you've exceeded it with an \"Over Budget\" "
+                        "badge. You can edit the limit or delete budgets anytime. Expenses "
+                        "automatically update budget progress as you add them."),
                     _help_section("📊 Generating Reports",
-                        "Open the Reports page to analyze your finances. Four period types are available:\n"
-                        "• Monthly — view one month at a time, navigate with arrows\n"
-                        "• Quarterly — see a 3-month quarter (Q1, Q2, Q3, Q4)\n"
+                        "Open the Reports page to analyze your finances. Four period types:\n"
+                        "• Monthly — navigate with arrow buttons\n"
+                        "• Quarterly — view a 3-month quarter (Q1, Q2, Q3, Q4)\n"
                         "• Annually — full year overview\n"
-                        "• Custom — pick any start and end date for a tailored report\n\n"
-                        "Each report shows: Balance Summary (opening/closing balance, income, expenses), "
-                        "an Income vs Expense trend chart, and an Expense Breakdown by category with percentages."),
+                        "• Custom — pick any start/end date range\n\n"
+                        "Each report shows: Balance Summary (opening balance, income, expenses, "
+                        "closing balance), an Income vs Expense trend line chart, Income Breakdown "
+                        "by category, and Expense Breakdown by category with percentage bars. "
+                        "If you have budgets set, a budget vs spending bar chart also appears."),
                     _help_section("🏷️ Managing Custom Categories",
-                        "Visit the Categories page. Switch between the Income and Expense tabs. "
-                        "Tap \"Add New\" to create a custom category — give it a name and pick an "
-                        "emoji icon (Tip: Win + . opens the emoji keyboard). Custom categories "
-                        "appear everywhere: in Add Transaction, Budgets, and Reports. "
-                        "You can delete custom categories, but built-in ones are fixed."),
+                        "Go to the Categories page. Switch between the Income and Expense tabs "
+                        "to see the default categories (read-only chips) and your custom ones. "
+                        "Tap \"+ Add Category\" to create a new one — enter a name and an emoji "
+                        "icon (Tip: Win + . opens the emoji keyboard on Windows). Custom "
+                        "categories appear everywhere: in Add Transaction, Budgets, and Reports. "
+                        "You can delete custom categories, but built-in defaults are fixed."),
                     _help_section("⚙️ Account & Settings",
-                        "In Settings you can manage your profile:\n"
-                        "• Change Photo — upload a profile picture using the native file picker\n"
+                        "In Settings you can manage your profile and app preferences:\n"
+                        "• Profile Photo — upload a photo via the native file picker (auto-resized "
+                        "to 512px); tap the avatar to view it full-size\n"
                         "• Username — tap to edit your display name\n"
-                        "• Change Email — update your email via Firebase verification link\n"
-                        "• Change Password — update your password (min 6 characters)\n"
+                        "• Change Email — sends a verification link to the new address\n"
+                        "• Change Password — update your password (min 8 chars, must contain "
+                        "a letter and a number); or send a reset link instead\n"
                         "• Dark Mode — toggle between light and dark themes\n"
-                        "• Delete Account — permanently erase all data (requires confirmation)"),
+                        "• Currency — switch between PKR, USD, EUR, GBP, INR, AED, SAR, CAD "
+                        "with live exchange rates; all existing data converts automatically\n"
+                        "• Sign Out — sign out of your account\n"
+                        "• Delete Account — permanently erases all data (type DELETE + password)"),
+                    _help_section("⌨️ Keyboard Shortcuts",
+                        "While on any page, press Ctrl+1 through Ctrl+6 to quickly jump between "
+                        "screens:\n"
+                        "Ctrl+1  Home ·  Ctrl+2  History ·  Ctrl+3  Reports\n"
+                        "Ctrl+4  Budgets ·  Ctrl+5  Categories ·  Ctrl+6  Settings"),
                 ], spacing=6, tight=True, scroll=ft.ScrollMode.AUTO),
                 padding=ft.Padding(8, 4, 8, 4),
             ),
@@ -664,7 +699,8 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
         faqs = [
             ("How do I reset my password?",
              "Go to Settings → Change Password. You have two options:\n"
-             "1. If you know your current password, enter it along with your new password and tap Update Password.\n"
+             "1. If you know your current password, enter it along with your new password and tap Update Password. "
+             "Your password must be at least 8 characters with at least one letter and one number.\n"
              "2. If you've forgotten your password, tap \"Send reset link instead\" — "
              "a password reset email will be sent to your registered email address. "
              "Follow the link in that email to create a new password."),
@@ -691,7 +727,8 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
              "The Balance Summary computes opening/closing balances. The Income vs Expense "
              "chart divides the period into time buckets and plots income/expense lines. "
              "The Expense Breakdown aggregates expenses by category and shows each as a "
-             "percentage of total spending."),
+             "percentage of total spending. If you have budgets set, a budget vs spending "
+             "bar chart also appears."),
             ("Can I have budgets for custom categories?",
              "Yes! Custom categories work exactly like built-in ones. Once you create a "
              "custom category in the Categories page (with your own emoji icon), you can "
@@ -714,6 +751,23 @@ def SettingsPage(page: ft.Page, on_logout, on_theme_changed=None, on_profile_cha
              "• Profile photos are stored in Supabase Storage\n\n"
              "Your data persists across sessions and devices — simply sign in with the "
              "same email and password to access everything."),
+            ("What do the budget badges (Over Budget / Near Limit) mean?",
+             "Budget cards show color-coded progress:\n"
+             "• Green — you've spent less than 80% of your monthly limit\n"
+             "• Orange (\"Near Limit\") — you've reached 80% or more of your limit\n"
+             "• Red (\"Over Budget\") — you've exceeded your monthly limit\n\n"
+             "These update automatically as you add new expense transactions."),
+            ("Does FinTrack work offline?",
+             "FinTrack requires an internet connection for most operations since "
+             "your data is stored in the cloud (Firebase + Supabase). If your "
+             "connection drops, a banner appears at the top of the screen saying "
+             "\"No internet connection\". The app checks connectivity every few "
+             "seconds and the banner disappears once you're back online."),
+            ("Are there keyboard shortcuts?",
+             "Yes! While on any page inside the app, use:\n"
+             "Ctrl+1  →  Home    ·  Ctrl+4  →  Budgets\n"
+             "Ctrl+2  →  History  ·  Ctrl+5  →  Categories\n"
+             "Ctrl+3  →  Reports  ·  Ctrl+6  →  Settings"),
         ]
         dialog = ft.AlertDialog(
             modal=True, bgcolor=c["surface"], shape=ft.RoundedRectangleBorder(radius=24),

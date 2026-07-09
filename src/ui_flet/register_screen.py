@@ -1,6 +1,7 @@
 """Register screen — creates a Firebase auth account + Supabase profile row,
 sends an email verification link, then signs the person back out so they
 must verify before they can actually log in. (Flet edition)"""
+import re
 import flet as ft
 from ui_flet.theme import theme, Palette, mesh_background, glass_card, neo_button, neo_input_slot
 from services.firebase_auth import FirebaseAuthService, AuthError
@@ -12,7 +13,7 @@ def RegisterScreen(page: ft.Page, on_register_success, on_go_login) -> ft.Contro
 
     username_box, username_field = neo_input_slot("Username", width=360)
     email_box, email_field = neo_input_slot("Email", width=360)
-    pw_box, pw_field = neo_input_slot("Password (min 6 characters)", password=True, width=360)
+    pw_box, pw_field = neo_input_slot("Password (min 8 chars, 1 letter & 1 number)", password=True, width=360)
     confirm_box, confirm_field = neo_input_slot("Confirm Password", password=True, width=360)
 
     error_text = ft.Text("", size=12, color=Palette.EXPENSE, visible=False)
@@ -36,8 +37,26 @@ def RegisterScreen(page: ft.Page, on_register_success, on_go_login) -> ft.Contro
         if password != confirm:
             show_error("Passwords do not match.")
             return
-        if len(password) < 6:
-            show_error("Password must be at least 6 characters.")
+        if len(password) < 8:
+            show_error("Password must be at least 8 characters.")
+            return
+        if not re.search(r"\d", password):
+            show_error("Password must contain at least one number.")
+            return
+        if not re.search(r"[a-zA-Z]", password):
+            show_error("Password must contain at least one letter.")
+            return
+
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            show_error("Please enter a valid email address.")
+            return
+
+        if FirebaseAuthService.is_logged_in() and FirebaseAuthService.get_email() == email:
+            show_error("You are already registered with this email.")
+            return
+
+        if FirebaseAuthService.check_email_exists(email):
+            show_error("This email is already registered. Please sign in instead.")
             return
 
         register_button.content = ft.Row(

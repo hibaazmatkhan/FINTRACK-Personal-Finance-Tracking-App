@@ -8,6 +8,8 @@ import sys
 import json
 import requests
 import pyrebase
+import firebase_admin
+from firebase_admin import auth as admin_auth, credentials as admin_creds
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -32,6 +34,27 @@ _auth = _firebase.auth()
 
 API_KEY = FIREBASE_CONFIG["apiKey"]
 IDENTITY_BASE = "https://identitytoolkit.googleapis.com/v1"
+
+# ── Firebase Admin SDK (lazy init) ──────────────────────────
+_admin_app = None
+
+def _get_admin_app():
+    global _admin_app
+    if _admin_app is not None:
+        return _admin_app
+    try:
+        sa_rel = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH", "firebase_service_account.json")
+        if getattr(sys, 'frozen', False):
+            sa_path = Path(sys._MEIPASS) / sa_rel
+        else:
+            sa_path = Path(__file__).resolve().parent.parent.parent / sa_rel
+        if not sa_path.exists():
+            return None
+        cred = admin_creds.Certificate(str(sa_path))
+        _admin_app = firebase_admin.initialize_app(cred)
+        return _admin_app
+    except Exception:
+        return None
 
 
 class AuthError(Exception):
@@ -150,9 +173,18 @@ class FirebaseAuthService:
 
     @staticmethod
     def check_email_exists(email: str) -> bool:
-        """Check if an email is already registered with Firebase by
-        attempting sign-in with a dummy password. Returns True if the
-        email is already taken."""
+        """Check if an email is already registered with Firebase.
+        Uses the Firebase Admin SDK when available (most reliable);
+        falls back to the signInWithPassword API otherwise."""
+        app = _get_admin_app()
+        if app is not None:
+            try:
+                admin_auth.get_user_by_email(email)
+                return True
+            except firebase_admin.auth.UserNotFoundError:
+                return False
+            except Exception:
+                pass
         try:
             url = f"{IDENTITY_BASE}/accounts:signInWithPassword?key={API_KEY}"
             resp = requests.post(url, json={

@@ -53,8 +53,8 @@ fetched automatically from the internet.
 ### 1. Clone
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/fintrack_python.git
-cd fintrack_python
+git clone https://github.com/YOUR_USERNAME/FINTRACK-Personal-Finance-Tracking-App.git
+cd FINTRACK-Personal-Finance-Tracking-App
 pip install -r requirements.txt
 ```
 
@@ -78,12 +78,20 @@ cp .env.example .env
 
 Edit `.env` and paste in **your own** Firebase and Supabase values:
 
-```
-FIREBASE_API_KEY=AIzaSyYourActualKey
-FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-FIREBASE_PROJECT_ID=your-project-id
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+```bash
+# Firebase (from Project Settings → General → Your apps → Web)
+FIREBASE_API_KEY=your_firebase_api_key
+FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+FIREBASE_APP_ID=your_app_id
+FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+FIREBASE_SERVICE_ACCOUNT_PATH=firebase_service_account.json
+
+# Supabase (from Project Settings → API)
+SUPABASE_URL=https://your_project.supabase.co
+SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 > ⚠️ **Never commit `.env`** — it's already in `.gitignore`.
@@ -122,6 +130,7 @@ The cloned repo contains **zero credentials**:
 | `.env` | Your real Firebase & Supabase keys | ❌ Gitignored |
 | `.env.example` | Placeholder values only | ✅ Safe to commit |
 | `firebase_service_account.json` | Firebase Admin private key | ❌ Gitignored |
+| `.fintrack_session.json` | Auth session tokens | ❌ Gitignored |
 | `theme_settings.json` | Local preferences | ❌ Gitignored |
 | All `.py` files in `src/` | Code only (uses `os.getenv()`) | ✅ Safe to commit |
 
@@ -130,10 +139,10 @@ The cloned repo contains **zero credentials**:
 **Yes.** The published `.exe` on the Releases page contains the author's
 Firebase API key and Supabase anon key. This is **normal** — every
 mobile app, web app, and desktop app bundles the same kind of
-client-safe keys. Real security is enforced server-side:
+client-safe keys. Server-side security controls access:
 
-- **Firebase Auth rules** control who can sign in
-- **Supabase Row Level Security (RLS)** controls what data each user sees
+- **Firebase Auth** handles authentication (sign-in, password, email)
+- **Supabase Row Level Security (RLS)** is available via `database/setup_rls.sql` for additional data isolation
 
 ### If I fork this repo
 
@@ -148,16 +157,17 @@ client-safe keys. Real security is enforced server-side:
 ## 📁 Project structure
 
 ```
-fintrack_python/
-├── main_flet.py                  # Entry point (root level — just run it)
-├── src/                          # All source code
+FinTrack/
+├── main_flet.py                       # Entry point — just run it
+├── src/                               # All source code
 │   ├── models/
-│   │   └── data_models.py        # Transaction, Budget, CustomCategory
+│   │   └── data_models.py             # Transaction, Budget, CustomCategory
 │   ├── services/
-│   │   ├── firebase_auth.py      # Firebase auth operations
-│   │   └── supabase_service.py   # Supabase database operations
+│   │   ├── connectivity.py            # Internet reachability monitor
+│   │   ├── firebase_auth.py           # Firebase auth operations
+│   │   └── supabase_service.py        # Supabase database operations
 │   └── ui_flet/
-│       ├── theme.py              # Theme, animations, currency
+│       ├── theme.py                   # Theme, animations, currency
 │       ├── login_screen.py
 │       ├── register_screen.py
 │       ├── dashboard_screen.py
@@ -169,16 +179,18 @@ fintrack_python/
 │       ├── settings_page.py
 │       └── add_transaction_dialog.py
 ├── scripts/
-│   └── build_exe.py              # PyInstaller build script
+│   └── build_exe.py                   # PyInstaller build script
 ├── database/
-│   └── schema.sql                # Complete Supabase schema
+│   ├── schema.sql                     # Complete Supabase schema
+│   └── setup_rls.sql                  # Optional RLS policies for Firebase JWT
 ├── installer/
-│   └── FinTrack_Setup.iss        # Inno Setup installer script
-├── .env.example                  # Placeholder credentials template
+│   └── FinTrack_Setup.iss             # Inno Setup installer script
+├── .env.example                       # Placeholder credentials template
+├── .gitignore
 ├── requirements.txt
 ├── app_icon.ico / .png
 ├── README.md
-└── RELEASE_NOTES.txt             # Info for end users who find the .exe
+└── RELEASE_NOTES.txt                  # Info for end users who find the .exe
 ```
 
 ## 🧰 Tech Stack

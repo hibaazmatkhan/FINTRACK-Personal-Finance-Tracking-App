@@ -5,7 +5,7 @@
 #define MyAppName "FinTrack"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "FinTrack"
-#define MyAppURL ""
+#define MyAppURL "https://github.com/hibaazmatkhan/FINTRACK-Personal-Finance-Tracking-App"
 #define MyAppExeName "FinTrack.exe"
 
 [Setup]
